@@ -33,6 +33,7 @@ python balrog.py \
   --model gpt-3.5-turbo \
   --api-key your_openai_api_key \
   --safety-model meta-llama/Llama-Guard-7b \
+  --host 0.0.0.0 \
   --port 5000
 ```
 
@@ -45,6 +46,7 @@ python balrog.py \
 | `--api-key` | ✅ | API key for authentication | `sk-...` |
 | `--safety-model` | ✅ | Safety model name | `meta-llama/Llama-Guard-7b` |
 | `--port` | ❌ | Port to host on (default: 5000) | `8080` |
+| `--host` | ❌ | Host/IP to bind to (default: 0.0.0.0) | `127.0.0.1`, `192.168.1.100` |
 | `--debug` | ❌ | Enable debug mode | - |
 | `--log-level` | ❌ | Set logging level | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 
@@ -57,6 +59,7 @@ python balrog.py \
   --model gpt-4 \
   --api-key sk-your_openai_key \
   --safety-model meta-llama/Llama-Guard-7b \
+  --host 0.0.0.0 \
   --port 8080
 ```
 
@@ -67,6 +70,7 @@ python balrog.py \
   --model claude-3-sonnet-20240229 \
   --api-key your_anthropic_key \
   --safety-model meta-llama/Llama-Guard-7b \
+  --host 0.0.0.0 \
   --port 5000
 ```
 
@@ -77,7 +81,55 @@ python balrog.py \
   --model llama2 \
   --api-key dummy_key \
   --safety-model meta-llama/Llama-Guard-7b \
+  --host 0.0.0.0 \
   --port 3000
+```
+
+## Server Deployment
+
+### Production Server
+```bash
+# Run on all interfaces for external access
+python balrog.py \
+  --api https://api.openai.com/v1 \
+  --model gpt-4 \
+  --api-key your_api_key \
+  --safety-model meta-llama/Llama-Guard-7b \
+  --host 0.0.0.0 \
+  --port 8080
+```
+
+### Local Development
+```bash
+# Run on localhost only
+python balrog.py \
+  --api https://api.openai.com/v1 \
+  --model gpt-3.5-turbo \
+  --api-key your_api_key \
+  --safety-model meta-llama/Llama-Guard-7b \
+  --host 127.0.0.1 \
+  --port 5000
+```
+
+### Docker Deployment
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+EXPOSE 5000
+
+CMD ["python", "balrog.py", \
+     "--api", "${LLM_API_ENDPOINT}", \
+     "--model", "${LLM_MODEL}", \
+     "--api-key", "${API_KEY}", \
+     "--safety-model", "${SAFETY_MODEL}", \
+     "--host", "0.0.0.0", \
+     "--port", "5000"]
 ```
 
 ## Safety Model Integration
@@ -214,6 +266,47 @@ Check application health
 - 🚫 **Content Filtering**: Dual-layer safety filtering (input + output)
 - 📝 **Logging**: Comprehensive logging for security monitoring
 - 🌐 **CORS Protection**: Proper CORS headers for API security
+- 🔒 **Session Security**: Secure session management with random keys
+
+## Production Deployment
+
+### Security Considerations
+- Use HTTPS in production (reverse proxy with nginx/Apache)
+- Set strong session secrets in production
+- Configure firewall rules for the specified port
+- Monitor logs for security events
+- Consider rate limiting for API endpoints
+
+### Environment Variables
+```bash
+export LLM_API_ENDPOINT="https://api.openai.com/v1"
+export LLM_MODEL="gpt-4"
+export API_KEY="your_secure_api_key"
+export SAFETY_MODEL="meta-llama/Llama-Guard-7b"
+export HOST="0.0.0.0"
+export PORT="8080"
+```
+
+### Systemd Service (Linux)
+```ini
+[Unit]
+Description=Balrog LLM Interface
+After=network.target
+
+[Service]
+Type=simple
+User=balrog
+WorkingDirectory=/opt/balrog
+Environment=LLM_API_ENDPOINT=https://api.openai.com/v1
+Environment=LLM_MODEL=gpt-4
+Environment=API_KEY=your_api_key
+Environment=SAFETY_MODEL=meta-llama/Llama-Guard-7b
+ExecStart=/usr/bin/python3 balrog.py --api ${LLM_API_ENDPOINT} --model ${LLM_MODEL} --api-key ${API_KEY} --safety-model ${SAFETY_MODEL} --host 0.0.0.0 --port 8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ## Troubleshooting
 

@@ -103,10 +103,11 @@ class BalrogApp:
     """Main Balrog application class"""
     
     def __init__(self, api_endpoint: str, api_key: str, model: str, 
-                 safety_model: str, port: int = 5000):
+                 safety_model: str, port: int = 5000, host: str = '0.0.0.0'):
         self.app = Flask(__name__)
         self.app.secret_key = secrets.token_hex(16)
         self.port = port
+        self.host = host
         
         # Initialize clients (both use same endpoint and key)
         self.llm_client = LLMClient(api_endpoint, api_key, model)
@@ -204,16 +205,19 @@ class BalrogApp:
                 "model": self.llm_client.model
             })
     
-    def run(self, debug: bool = False):
+    def run(self, debug: bool = False, host: str = None):
         """Run the Flask application"""
-        logger.info(f"Starting Balrog server on port {self.port}")
+        if host is None:
+            host = self.host
+        logger.info(f"Starting Balrog server on {host}:{self.port}")
         try:
             run_simple(
-                hostname='127.0.0.1',
+                hostname=host,
                 port=self.port,
                 application=self.app,
                 use_debugger=debug,
-                use_reloader=debug
+                use_reloader=debug,
+                threaded=True
             )
         except KeyboardInterrupt:
             logger.info("Server stopped by user")
@@ -231,13 +235,13 @@ Examples:
                    --model gpt-3.5-turbo \\
                    --api-key your_openai_key \\
                    --safety-model meta-llama/Llama-Guard-7b \\
-                   --port 8080
+                   --host 0.0.0.0 --port 8080
 
   python balrog.py --api https://api.anthropic.com/v1 \\
                    --model claude-3-sonnet-20240229 \\
                    --api-key your_anthropic_key \\
                    --safety-model meta-llama/Llama-Guard-7b \\
-                   --port 5000
+                   --host 0.0.0.0 --port 5000
         """
     )
     
@@ -270,6 +274,12 @@ Examples:
         type=int,
         default=5000,
         help='Port to host the web interface on (default: 5000)'
+    )
+    
+    parser.add_argument(
+        '--host',
+        default='0.0.0.0',
+        help='Host/IP to bind the server to (default: 0.0.0.0 for all interfaces)'
     )
     
     parser.add_argument(
@@ -310,7 +320,8 @@ def main():
             api_key=args.api_key,
             model=args.model,
             safety_model=args.safety_model,
-            port=args.port
+            port=args.port,
+            host=args.host
         )
         
         app.run(debug=args.debug)
